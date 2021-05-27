@@ -6,260 +6,127 @@ state("PrinceOfPersia_Launcher"){
 	int combat : 0x00B37F6C, 0xE0, 0x1C, 0xC, 0x7CC;
 }
 
-startup{	
-//Delcaring flags & targets.
-	bool kill = false;
-	bool seedGet = false;
-	bool startUp = false;
-	int xTarget = 0;
-	int yTarget = 0;
-	int zTarget = 0;
-}
 
-//When the Prince's x coordinate is set after loading into the Canyon, reset.
-reset {
-	if(old.xPos != -465 && current.xPos == -465){
-		return true;
-	}
-}
-
-//When the Prince's y coordinate is set after loading into the Canyon, start.
-start {
-	if(old.yPos != -351 && current.yPos == -351){
-		return true;
-}
-
-//Initializing flags & targets.
-	vars.kill = false;
-	vars.seedGet = false;
-	vars.startUp = true;
-	vars.xTarget = 0;
-	vars.yTarget = 0;
-	vars.zTarget = 0;
+init{
+	 //setting refresh rate to double of game's framerate just to be sure:
+	 refreshRate = 120;
+	 
+	//this function will take 2 float values as input and check if X co-ordinate is within those values:
+	vars.inXRange = (Func <float, float, bool>)((xMin, xMax) => { return current.xPos >= xMin && current.xPos <= xMax ? true : false; });
 	
-
+	//this function will take 2 float values as input and check if Y co-ordinate is within those values:
+	vars.inYRange = (Func <float, float, bool>)((yMin, yMax) => { return current.yPos >= yMin && current.yPos <= yMax ? true : false; });
+	
+	//this function will take 2 float values as input and check if Z co-ordinate is within those values:
+	vars.inZRange = (Func <float, float, bool>)((zMin, zMax) => { return current.zPos >= zMin && current.zPos <= zMax ? true : false; });
+	
+	//this function will take 6 float values as input and check if X,Y and Z co-ordinates are within those values:
+	vars.inPosFull = (Func <float, float, float, float, float, float, bool>)((xMin, xMax, yMin, yMax, zMin, zMax) => { return vars.inXRange(xMin, xMax) && vars.inYRange(yMin, yMax) && vars.inZRange(zMin, zMax) ? true : false; });
+	
+	//this function will take 3 float values for x,y and z of target split location and 1 integer for half-size of range as input and check if X,Y and Z co-ordinates within the range of the target:
+	vars.inPosWithRange = (Func <float, float, float, int, bool>)((xTarg, yTarg, zTarg, range) => {
+		return
+			current.xPos >= xTarg - range && current.xPos <= xTarg + range &&
+			current.yPos >= yTarg - range && current.yPos <= yTarg + range &&
+			current.zPos >= zTarg - range && current.zPos <= zTarg + range ? true : false;
+	});
+	
+	//This function checks if x,y,z co-ordinates are in a certain range and if a seed has just been picked:
+	vars.splitSeed = (Func <float, float, float, bool>)((xTarg, yTarg, zTarg) => { return vars.inPosWithRange(xTarg, yTarg, zTarg, 3) && vars.seedGet ? true : false; });
+	
+	//This function checks if x,y,z co-ordinates are in a certain range and if a combat has just ended:
+	vars.splitBoss = (Func <float, float, float, bool>)((xTarg, yTarg, zTarg) => { return vars.inPosWithRange(xTarg, yTarg, zTarg, 30) && vars.kill ? true : false; });
 }
+
+
+reset {
+	//When the Prince's x coordinate is set after loading into the Canyon, reset.
+	return old.xPos != -465 && current.xPos == -465;
+}
+
+
+start {
+	//When the Prince's y coordinate is set after loading into the Canyon, start.
+	return old.yPos != -351 && current.yPos == -351;
+}
+
 
 split{
-//Initializing flags & targets in the event the start function wasn't used.
-	if(!vars.startUp){
-		vars.kill = false;
-		vars.seedGet = false;
-		vars.startUp = true;
-		vars.xTarget = 0;
-		vars.yTarget = 0;
-		vars.zTarget = 0;
-	}
-//Setting kill to true any time you exit combat.
-	if(old.combat == 2 && current.combat == 0){
-		vars.kill = true;
-	}
-//Setting seedGet to true any time you collect a seed.
-	if(current.seedCount == old.seedCount+1){
-		vars.seedGet = true;
-	}
-
-//In the case of each split, looking for qualifications to complete the split. There are three kinds of splits in this script.
-//Location Based: If you're inside the outlined zone, the split fires.
-//Seed Based: If you're inside the outlined zone AND collect a seed, the split fires.
-//Combat Based: If you're inside the outlined zone AND exit combat, the split fires.
-switch (timer.CurrentSplitIndex)
-			{
-				case 0: //First Fight Skip
-					if (current.zPos >= -31 && current.zPos <= -28 && current.yPos >= -331)
-						return true;
-					break;
-				case 1: //The Canyon
-					if (current.xPos <= -200 && current.xPos >= -208 && current.yPos <= -27.5 && current.yPos >= -38 && current.zPos >= -511)
-						return true;
-					break;
-				case 2: //King's Gate
-					vars.xTarget = -538.834;
-					vars.yTarget = -67.159;
-					vars.zTarget = 12.732;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 3: //Sun Temple
-					vars.xTarget = -670.471;
-					vars.yTarget = -56.147;
-					vars.zTarget = 16.46;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 4: //Marshalling Grounds
-					vars.xTarget = -806.671;
-					vars.yTarget = 112.803;
-					vars.zTarget = 21.645;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 5: //Windmills
-					vars.xTarget = -597.945;
-					vars.yTarget = 209.241;
-					vars.zTarget = 23.339;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 6: //Martyrs' Tower
-					vars.xTarget = -564.202;
-					vars.yTarget = 207.312;
-					vars.zTarget = 22;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;					
-				case 7: //MT -> MG
-					vars.xTarget = -454.824;
-					vars.yTarget = 398.571;
-					vars.zTarget = 27.028;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 8: //Machinery Ground
-					vars.xTarget = -361.121;
-					vars.yTarget = 480.114;
-					vars.zTarget = 12.928;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 9: //Heaven's Stair
-					vars.xTarget = -85.968;
-					vars.yTarget = 573.338;
-					vars.zTarget = 30.558;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 10: //Spire of Dreams
-					vars.xTarget = -28.088;
-					vars.yTarget = 544.298;
-					vars.zTarget = 34.942;
-					if(current.xPos <= (vars.xTarget+3) && current.xPos >= (vars.xTarget-3) && current.yPos <= (vars.yTarget+3) && current.yPos >= (vars.yTarget-3) && current.zPos <= (vars.zTarget+3) && current.zPos >= (vars.zTarget-3) && vars.seedGet)
-						return true;
-					break;
-				case 11: //Reservoir
-					vars.xTarget = -150.082;
-					vars.yTarget = 406.606;
-					vars.zTarget = 34.673;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 12: //Construction Yard
-					vars.xTarget = -151.121;
-					vars.yTarget = 303.514;
-					vars.zTarget = 27.95;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 13: //Cauldron
-					vars.xTarget = 107.123;
-					vars.yTarget = 183.394;
-					vars.zTarget = -5.628;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 14: //Cavern
-					vars.xTarget = 251.741;
-					vars.yTarget = 65.773;
-					vars.zTarget = -13.616;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 15: //City Gate
-					vars.xTarget = 547.488;
-					vars.yTarget = 45.41;
-					vars.zTarget = -27.107;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 16: //Tower of Ormazd
-					vars.xTarget = 609.907;
-					vars.yTarget = 61.905;
-					vars.zTarget = -35.001;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 17: //Queen's Tower
-					vars.xTarget = 637.262;
-					vars.yTarget = 27.224;
-					vars.zTarget = -28.603;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 18: //The Temple (Arrive)
-					if(current.yPos <= -234.5 && current.zPos >= -37 && current.xPos >= -0.5 && current.xPos <= 12)
-						return true;
-					break;
-				case 19: //Double Jump
-					if(current.xPos <= 6.19 && current.xPos >= 6.12 && current.yPos >= -233.49 && current.yPos <= -225.18 && current.zPos >= -33.01 && current.zPos <= -32.5)
-						return true;
-					break;
-				case 20: //Wings of Ormazd
-					if(current.xPos >= 6.6 && current.xPos <= 6.8 && current.yPos >= -171.8 && current.yPos <= -171.6 && current.zPos == -49)
-						return true;
-					break;
-				case 21: //The Warrior
-					vars.xTarget = 1070.478;
-					vars.yTarget = 279.147;
-					vars.zTarget = -29.571;
-					if(current.xPos <= (vars.xTarget+23) && current.xPos >= (vars.xTarget-23) && current.yPos <= (vars.yTarget+23) && current.yPos >= (vars.yTarget-23) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.kill)
-						return true;
-					break;
-				case 22: //Heal Coronation Hall
-					if(current.xPos >= 328 && current.xPos <= 352 && current.yPos >= 570 && current.yPos <= 595 && current.zPos >= 32.4 && vars.kill)
-						return true;
-					break;
-				case 23: //Coronation Hall
-					vars.xTarget = 264.497;
-					vars.yTarget = 589.336;
-					vars.zTarget = 38.67;
-					if(current.xPos <= (vars.xTarget+2) && current.xPos >= (vars.xTarget-2) && current.yPos <= (vars.yTarget+2) && current.yPos >= (vars.yTarget-2) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.seedGet)
-						return true;
-					break;
-				case 24: //Heal Heaven's Stair
-					if(current.xPos >= -322 && current.xPos <= -260 && current.yPos >= 628 && current.yPos <= 675 && current.zPos >= 99.2 && vars.kill)
-						return true;
-					break;
-				case 25: //The Alchemist
-					vars.xTarget = -296.593;
-					vars.yTarget = 697.233;
-					vars.zTarget = 296.199;
-					if(current.xPos <= (vars.xTarget+10) && current.xPos >= (vars.xTarget-10) && current.yPos <= (vars.yTarget+10) && current.yPos >= (vars.yTarget-10) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.kill)
-						return true;
-					break;
-				case 26: //The Hunter
-					vars.xTarget = -929.415;
-					vars.yTarget = 320.888;
-					vars.zTarget = -89.038;
-					if(current.xPos <= (vars.xTarget+10) && current.xPos >= (vars.xTarget-10) && current.yPos <= (vars.yTarget+10) && current.yPos >= (vars.yTarget-10) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.kill)
-						return true;
-					break;
-				case 27: //Hand of Ormazd
-					if(old.zPos <= 0 && current.zPos >= 32.4)
-						return true;
-					break;
-				case 28: //The Concubine
-					vars.xTarget = 352.792;
-					vars.yTarget = 801.051;
-					vars.zTarget = 150.260;
-					if(current.xPos <= (vars.xTarget+26) && current.xPos >= (vars.xTarget-26) && current.yPos <= (vars.yTarget+26) && current.yPos >= (vars.yTarget-26) && current.zPos <= (vars.zTarget+2) && current.zPos >= (vars.zTarget-2) && vars.kill)
-						return true;
-					break;
-				case 29: //The King
-					if(current.xPos <= 20 && current.xPos >= -10 && current.yPos >= -375 && current.yPos <= -355 && current.zPos <= -32 && vars.kill)
-						return true;
-					break;
-				case 30: //The God
-					if(current.xPos <= 7.131 && current.xPos >= 7.129 && current.yPos >= -401.502 && current.yPos <= -401.5 && current.zPos >= -31.4)
-						return true;
-					break;
-				case 31: //Resurrection
-					if(current.xPos <= 5.566 && current.xPos >= 5.562 && current.yPos >= -222.745 && current.yPos <= -222.517 && current.zPos >= -33.1)
-						return true;
-					break;
-				
-			}
-			
-//Unmarking flags at the end of each cycle.
+	//Unmarking flags from previous cycle:
 	vars.kill = false;
-	vars.seedGet = true;
+	vars.seedGet = false;
+	
+	//Checking and setting flags if conditions are met:
+	if (old.combat == 2 && current.combat == 0) vars.kill = true;
+	if (current.seedCount == old.seedCount + 1) vars.seedGet = true;
+
+	// Initializing split conditions:
+	bool Alchemist        = vars.splitBoss(-296.593f, 697.233f, 296.199f) ? true : false;
+	bool BluePlate        = current.zPos >= 32.4 && old.zPos <= 0 ? true : false;
+	bool Canyon           = vars.inXRange(-208f, -200f)   && vars.inYRange(-38f, -27.5f) && current.zPos >= -511 ? true : false;
+	bool Cauldron         = vars.splitSeed(107.123f, 183.394f, -5.628f) ? true : false;
+	bool Cavern           = vars.splitSeed(251.741f, 65.773f, -13.616f) ? true : false;
+	bool CityGate         = vars.splitSeed(547.488f, 45.41f, -27.107f) ? true : false;
+	bool Concubine        = vars.splitBoss(352.792f, 801.051f, 150.260f) ? true : false;
+	bool ConstructionYard = vars.splitSeed(-151.121f, 303.514f, 27.95f) ? true : false;
+	bool CoronationHall   = vars.splitSeed(264.497f, 589.336f, 38.67f) ? true : false;
+	bool CoronationHallH  = vars.splitBoss(340f, 582.5f, 32.5f) ? true : false;
+	bool DoubleJump       = vars.inPosFull(6.12f, 6.19f, -233.49f, -225.18f, -33.01f, -32.5f) ? true : false;
+	bool FirstFightSkip   = current.yPos >= -331 && vars.inZRange(-31f, -28f) ? true : false;
+	bool HeavensStair     = vars.splitSeed(-85.968f, 573.338f, 30.558f) ? true : false;
+	bool HeavensStairH    = vars.splitBoss(-291f, 651.5f, 99.2f) ? true : false;
+	bool Hunter           = vars.splitBoss(-929.415f, 320.888f, -89.038f) ? true : false;
+	bool King             = vars.splitBoss(5f, -365f, -32f) ? true : false;
+	bool KingsGate        = vars.splitSeed(-538.834f, -67.159f, 12.732f) ? true : false;
+	bool MachineryGround  = vars.splitSeed(-361.121f, 480.114f, 12.928f) ? true : false;
+	bool MarshGrounds     = vars.splitSeed(-806.671f, 112.803f, 21.645f) ? true : false;
+	bool MartyrsTower     = vars.splitSeed(-564.202f, 207.312f, 22f) ? true : false;
+	bool MTtoMG           = vars.splitSeed(-454.824f, 398.571f, 27.028f) ? true : false;
+	bool QueensTower      = vars.splitSeed(637.262f, 27.224f, -28.603f) ? true : false;
+	bool Reservoir08      = vars.splitSeed(-150.082f, 406.606f, 34.673f) ? true : false;
+	bool Resurrection     = vars.inXRange(5.562f, 5.566f) && vars.inYRange(-222.745f, -222.517f) && current.zPos >= -33.1 ? true : false;
+	bool SpireOfDreams    = vars.splitSeed(-28.088f, 544.298f, 34.942f) ? true : false;
+	bool SunTemple08      = vars.splitSeed(-670.471f, -56.147f, 16.46f) ? true : false;
+	bool TempleArrive     = vars.inXRange(-0.5f, 12f) && current.yPos <= -234.5 && current.zPos >= -37 ? true : false;
+	bool TheGod           = vars.inXRange(7.129f, 7.131f) && vars.inYRange(-401.502f, -401.5f) && current.zPos >= -31.4  ? true : false;
+	bool TowerOfOrmazd    = vars.splitSeed(609.907f, 61.905f, -35.001f) ? true : false;
+	bool Warrior          = vars.splitBoss(1070.478f, 279.147f, -29.571f) ? true : false;
+	bool Windmills        = vars.splitSeed(-597.945f, 209.241f, 23.339f) ? true : false;
+	bool YellowPlate      = vars.inXRange(6.6f, 6.8f) && vars.inYRange(-171.8f, -171.6f) && current.zPos == -49 ? true : false;
+
+	// Checking qualifications to complete each split:
+	switch (timer.CurrentSplitIndex) {
+		case 0: return FirstFightSkip;    // First Fight Skip
+		case 1: return Canyon;            // The Canyon
+		case 2: return KingsGate;         // King's Gate
+		case 3: return SunTemple08;       // Sun Temple
+		case 4: return MarshGrounds;      // Marshalling Grounds
+		case 5: return Windmills;         // Windmills
+		case 6: return MartyrsTower;      // Martyrs' Tower
+		case 7: return MTtoMG;            // MT -> MG
+		case 8: return MachineryGround;   // Machinery Ground
+		case 9: return HeavensStair;      // Heaven's Stair
+		case 10: return SpireOfDreams;    // Spire of Dreams
+		case 11: return Reservoir08;      // Reservoir
+		case 12: return ConstructionYard; // Construction Yard
+		case 13: return Cauldron;         // Cauldron
+		case 14: return Cavern;           // Cavern
+		case 15: return CityGate;         // City Gate
+		case 16: return TowerOfOrmazd;    // Tower of Ormazd
+		case 17: return QueensTower;      // Queen's Tower
+		case 18: return TempleArrive;     // The Temple (Arrive)
+		case 19: return DoubleJump;       // Double Jump
+		case 20: return YellowPlate;      // Wings of Ormazd
+		case 21: return Warrior;          // The Warrior
+		case 22: return CoronationHallH;  // Heal Coronation Hall
+		case 23: return CoronationHall;   // Coronation Hall
+		case 24: return HeavensStairH;    // Heal Heaven's Stair
+		case 25: return Alchemist;        // The Alchemist
+		case 26: return Hunter;           // The Hunter
+		case 27: return BluePlate;        // Hand of Ormazd
+		case 28: return Concubine;        // The Concubine
+		case 29: return King;             // The King
+		case 30: return TheGod;           // The God
+		case 31: return Resurrection;	  // Resurrection
+	}
 }
